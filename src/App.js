@@ -1,6 +1,6 @@
 import './App.css';
 import {useEffect,useState} from 'react';
-
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 function App() {
   const[name,setName]=useState('');
@@ -9,6 +9,18 @@ function App() {
   const[transactions,setTransactions]= useState([]);
   const[isLoading,setIsLoading]= useState(false);
   const[deleteModal,setDeleteModal]= useState({ show: false, transactionId: null, transactionName: '' });
+  const [activeChart, setActiveChart] = useState('line'); // 'pie', 'bar', 'line'
+  const [timeRange, setTimeRange] = useState('all'); // 'all', 'month', 'week'
+
+  const [savingsGoals, setSavingsGoals] = useState([]);
+  const [newGoal, setNewGoal] = useState({
+    name: '',
+    targetAmount: '',
+    targetDate: '',
+    currentAmount: '0'
+  });
+  const [showGoalForm, setShowGoalForm] = useState(false);
+
   useEffect(()=>{
     getTransactions().then(transactions => {
       if (Array.isArray(transactions)) {
@@ -22,6 +34,31 @@ function App() {
       setTransactions([]);
     });
   },[]);
+  useEffect(() => {
+    getTransactions().then(transactions => {
+      if (Array.isArray(transactions)) {
+        setTransactions(transactions);
+      }
+    });
+
+    const savedGoals = localStorage.getItem('savingsGoals');
+    if (savedGoals) {
+    try {
+      const parsedGoals = JSON.parse(savedGoals);
+      if (Array.isArray(parsedGoals)) {
+        setSavingsGoals(parsedGoals);
+      }
+    } catch (e) {
+      console.error('Failed to parse saved goals', e);
+    }
+  }
+}, []); 
+ useEffect(() => {
+  if (savingsGoals.length > 0 || localStorage.getItem('savingsGoals')) {
+    localStorage.setItem('savingsGoals', JSON.stringify(savingsGoals));
+  }
+}, [savingsGoals]); 
+
 
   async function getTransactions(){
     try {
@@ -75,8 +112,6 @@ function App() {
       return;
     }
 
-    console.log('Sending transaction:', { name: itemName, description, datetime, price });
-
     fetch(url,{
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -95,6 +130,7 @@ function App() {
       setName('');
       setDatetime('');
       setDescription('');
+
       console.log('Transaction created successfully:', json);
       // Refresh transactions after adding new one
       getTransactions().then(transactions => {
@@ -176,7 +212,204 @@ function App() {
   function cancelDelete() {
     setDeleteModal({ show: false, transactionId: null, transactionName: '' });
   }
+   // Filter transactions based on time range
+  const filteredTransactions = transactions.filter(transaction => {
+    if (timeRange === 'all') return true;
+    
+    const transactionDate = new Date(transaction.datetime);
+    const now = new Date();
+    const diffTime = now - transactionDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    
+    if (timeRange === 'month') return diffDays <= 30;
+    if (timeRange === 'week') return diffDays <= 7;
+    return true;
+  });
 
+  // Prepare data for charts
+  const prepareChartData = () => {
+    const categoryMap = {};
+    
+    filteredTransactions.forEach(transaction => {
+      const category = transaction.description || 'Uncategorized';
+      if (!categoryMap[category]) {
+        categoryMap[category] = 0;
+      }
+      categoryMap[category] += transaction.price;
+    });
+
+    return Object.keys(categoryMap).map(category => ({
+      name: category,
+      value: Math.abs(categoryMap[category]),
+      type: categoryMap[category] > 0 ? 'Income' : 'Expense',
+      color: categoryMap[category] > 0 ? '#4CAF50' : '#F44336'
+    }));
+  };
+
+  const chartData = prepareChartData();
+  const sortedChartData = [...chartData].sort((a, b) => b.value - a.value).slice(0, 8);
+
+  // Prepare data for line chart (daily balance)
+  const prepareDailyBalanceData = () => {
+    const dailyBalance = {};
+    let runningBalance = 0;
+    
+    // Sort transactions by date
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => 
+      new Date(a.datetime) - new Date(b.datetime)
+    );
+
+
+    sortedTransactions.forEach(transaction => {
+      const date = new Date(transaction.datetime).toLocaleDateString();
+      runningBalance += transaction.price;
+      
+      if (!dailyBalance[date]) {
+        dailyBalance[date] = 0;
+      }
+      dailyBalance[date] = runningBalance;
+    });
+
+    return Object.keys(dailyBalance).map(date => ({
+      date,
+      balance: dailyBalance[date]
+    }));
+  };
+
+  const dailyBalanceData = prepareDailyBalanceData();
+
+  // Calculate income and expense totals
+  const incomeTotal = filteredTransactions
+    .filter(t => t.price > 0)
+    .reduce((sum, t) => sum + t.price, 0)
+    .toFixed(2);
+
+  const expenseTotal = filteredTransactions
+    .filter(t => t.price < 0)
+    .reduce((sum, t) => sum + t.price, 0)
+    .toFixed(2);
+   const handleSaveGoal = () => {
+    if (!newGoal.name || !newGoal.targetAmount || !newGoal.targetDate) {
+      alert('Please fill all fields');
+      return;
+    }
+    const goal = {
+      id: Date.now(),
+      ...newGoal,
+      targetAmount: parseFloat(newGoal.targetAmount),
+      currentAmount: parseFloat(newGoal.currentAmount),
+      createdAt: new Date().toISOString()
+    };
+    setSavingsGoals([...savingsGoals, goal]);
+    setNewGoal({ name: '', targetAmount: '', targetDate: '', currentAmount: '0' });
+    setShowGoalForm(false);
+  };
+   const handleAddFunds = async (goalId) => {
+  const amountInput = document.getElementById(`add-${goalId}`);
+  const amount = parseFloat(amountInput.value);
+
+     if (isNaN(amount) || amount <= 0) {
+    alert('Please enter a valid amount');
+    return;
+  }
+   try {
+    setIsLoading(true);
+   // 1. Create a transaction for the deduction
+    const transactionUrl = process.env.REACT_APP_API_URL + '/transaction';
+    const transactionResponse = await fetch(transactionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `Savings: ${savingsGoals.find(g => g.id === goalId).name}`,
+        description: 'Savings transfer',
+        datetime: new Date().toISOString(),
+        price: -amount, // Negative because it's an expense
+      }),
+    });
+
+    if (!transactionResponse.ok) {
+      throw new Error('Failed to create transaction');
+    }
+
+    setSavingsGoals(savingsGoals.map(goal => 
+      goal.id === goalId 
+        ? { ...goal, currentAmount: goal.currentAmount + amount }
+        : goal
+    ));
+    const updatedTransactions = await getTransactions();
+    if (Array.isArray(updatedTransactions)) {
+      setTransactions(updatedTransactions);
+    }
+    amountInput.value = '';    
+  }catch (error) {
+    console.error('Error adding funds:', error);
+    alert(`Failed to add funds: ${error.message}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
+  const handleDeleteGoal = (goalId) => {
+    setSavingsGoals(savingsGoals.filter(goal => goal.id !== goalId));
+  };
+  const getAchievementLevel = (progress) => {
+    if (progress >= 100) return '🏆 Champion';
+    if (progress >= 75) return '🔥 On Fire';
+    if (progress >= 50) return '🚀 Halfway There';
+    if (progress >= 25) return '👶 Beginner';
+    return '🆕 New Goal';
+  };
+  const SavingsGoalCard = ({ goal, onAddFunds, onDelete }) => {
+    const progress = (goal.currentAmount / goal.targetAmount) * 100;
+    const daysLeft = Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24));
+      return (
+      <div className="goal-card">
+        <div className="goal-header">
+          <h3>{goal.name}</h3>
+          <button className="delete-goal" onClick={() => onDelete(goal.id)}>
+            ×
+          </button>
+        </div>
+        
+        <div className="progress-bar">
+          <div 
+            className="progress-fill"
+            style={{ width: `${Math.min(progress, 100)}%` }}
+          ></div>
+          <span className="progress-text">
+            ${goal.currentAmount.toFixed(2)} of ${goal.targetAmount.toFixed(2)} ({Math.round(progress)}%)
+          </span>
+        </div>
+        
+        <div className="goal-details">
+          <span>Target Date: {new Date(goal.targetDate).toLocaleDateString()}</span>
+          <span>{daysLeft > 0 ? `${daysLeft} days left` : 'Past due'}</span>
+          <div className="achievement-badge">
+            {getAchievementLevel(progress)}
+          </div>
+        </div>
+        
+        <div className="goal-actions">
+          <input
+            type="number"
+            placeholder="Add amount"
+            id={`add-${goal.id}`}
+            min="0"
+            step="0.01"
+          />
+          <button onClick={() => onAddFunds(goal.id)}>
+            Add Funds
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
+  const savingsTotal = savingsGoals
+    .reduce((sum, goal) => sum + goal.currentAmount, 0)
+    .toFixed(2);
+  
+  
   // Format date for better display
   function formatDate(dateString) {
     const date = new Date(dateString);
@@ -197,6 +430,8 @@ function App() {
   balance = balance.toFixed(2);
   const fraction = balance.split('.')[1];
   balance = balance.split('.')[0];
+ 
+  
 
   return (
     <div className="app-container">
@@ -204,7 +439,7 @@ function App() {
         <div className="navbar-content">
           <div className="logo">💰 Money Tracker</div>
           <div className="nav-stats">
-            <span>{transactions.length} transactions</span>
+            <span>{transactions.length} transactions | {savingsGoals.length} goals</span>
           </div>
         </div>
       </nav>
@@ -273,6 +508,153 @@ function App() {
         </form>
           </div>
         </div>
+         <div className="data-visualization-section">
+        <h2 className="section-title">Financial Insights</h2>
+        
+        <div className="chart-controls">
+          <div className="time-range-selector">
+            <button 
+              className={timeRange === 'all' ? 'active' : ''} 
+              onClick={() => setTimeRange('all')}
+            >
+              All Time
+            </button>
+            <button 
+              className={timeRange === 'month' ? 'active' : ''} 
+              onClick={() => setTimeRange('month')}
+            >
+              Last 30 Days
+            </button>
+            <button 
+              className={timeRange === 'week' ? 'active' : ''} 
+              onClick={() => setTimeRange('week')}
+            >
+              Last 7 Days
+            </button>
+          </div>
+          
+          <div className="chart-type-selector">
+            <button 
+              className={activeChart === 'line' ? 'active' : ''} 
+              onClick={() => setActiveChart('line')}
+            >
+              Trend
+            </button>
+            <button 
+              className={activeChart === 'pie' ? 'active' : ''} 
+              onClick={() => setActiveChart('pie')}
+            >
+              Pie Chart
+            </button>
+            <button 
+              className={activeChart === 'bar' ? 'active' : ''} 
+              onClick={() => setActiveChart('bar')}
+            >
+              Bar Chart
+            </button>
+            
+          </div>
+        </div>
+
+        <div className="summary-cards">
+          <div className="summary-card income">
+            <h3>Total Income</h3>
+            <p>${incomeTotal}</p>
+          </div>
+          <div className="summary-card expense">
+            <h3>Total Expenses</h3>
+            <p>${Math.abs(expenseTotal)}</p>
+          </div>
+          <div className="summary-card net">
+            <h3>Net Balance</h3>
+            <p>${(parseFloat(incomeTotal) + parseFloat(expenseTotal)).toFixed(2)}</p>
+          </div>
+        </div>
+
+        <div className="chart-container">
+          {activeChart === 'line' && (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={dailyBalanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Balance']} />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="balance" 
+                  name="Balance Over Time" 
+                  stroke="#8884d8" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+          {activeChart === 'pie' && (
+            <ResponsiveContainer width="100%" height={400}>
+              <PieChart>
+                <Pie
+                  data={sortedChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={150}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {sortedChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+
+          {activeChart === 'bar' && (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={sortedChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                <Legend />
+                <Bar dataKey="value" name="Amount">
+                  {sortedChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+  
+        </div>
+      </div>
+       {/* Summary Cards - Updated with Savings */}
+        <div className="summary-cards">
+          <div className="summary-card income">
+            <h3>Total Income</h3>
+            <p>${incomeTotal}</p>
+          </div>
+          <div className="summary-card expense">
+            <h3>Total Expenses</h3>
+            <p>${Math.abs(expenseTotal)}</p>
+          </div>
+          <div className="summary-card net">
+            <h3>Net Balance</h3>
+            <p>${(parseFloat(incomeTotal) + parseFloat(expenseTotal)).toFixed(2)}</p>
+          </div>
+          <div className="summary-card savings">
+            <h3>Total Savings</h3>
+            <p>${savingsTotal}</p>
+          </div>
+        </div>
+        
+
         <div className="transactions-section">
           <h2 className="section-title">Recent Transactions</h2>
           <div className='transactions'>
@@ -310,6 +692,7 @@ function App() {
           </div>
         </div>
 
+
         {/* Delete Confirmation Modal */}
         {deleteModal.show && (
           <div className='modal-overlay' onClick={cancelDelete}>
@@ -330,6 +713,66 @@ function App() {
             </div>
           </div>
         )}
+        {/* NEW Savings Section */}
+        <div className="savings-section">
+          <h2 className="section-title">Savings Goals</h2>
+          
+          <button 
+            className="add-goal-btn"
+            onClick={() => setShowGoalForm(!showGoalForm)}
+          >
+            {showGoalForm ? 'Cancel' : '+ Add New Goal'}
+          </button>
+
+          {showGoalForm && (
+            <div className="goal-form">
+              <h3>Create New Savings Goal</h3>
+              <input
+                type="text"
+                placeholder="Goal name (e.g. Vacation)"
+                value={newGoal.name}
+                onChange={(e) => setNewGoal({...newGoal, name: e.target.value})}
+              />
+              <input
+                type="number"
+                placeholder="Target amount ($)"
+                value={newGoal.targetAmount}
+                onChange={(e) => setNewGoal({...newGoal, targetAmount: e.target.value})}
+                min="0"
+                step="0.01"
+              />
+              <input
+                type="date"
+                value={newGoal.targetDate}
+                onChange={(e) => setNewGoal({...newGoal, targetDate: e.target.value})}
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <button 
+                className="save-goal-btn"
+                onClick={handleSaveGoal}
+              >
+                Save Goal
+              </button>
+            </div>
+          )}
+
+          <div className="goals-list">
+            {savingsGoals.length > 0 ? (
+              savingsGoals.map((goal) => (
+                <SavingsGoalCard 
+                  key={goal.id}
+                  goal={goal}
+                  onAddFunds={handleAddFunds}
+                  onDelete={handleDeleteGoal}
+                />
+              ))
+            ) : (
+              <div className="empty-goals">
+                <p>No savings goals yet. Create your first goal to start saving!</p>
+              </div>
+            )}
+          </div>
+        </div>
 
       </main>
 

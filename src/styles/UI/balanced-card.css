@@ -1,0 +1,100 @@
+.balance-card {
+  background: rgba(13, 17, 23, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(48, 54, 61, 0.5);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.balance-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #58a6ff, #7c3aed, #f85149);
+  animation: gradientFlow 4s ease infinite;
+  background-size: 200% 200%;
+}
+
+.balance-label {
+  font-size: 0.9rem;
+  color: #7d8590;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+
+.balance-amount {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.balance-amount .cents {
+  font-size: 1.5rem;
+  vertical-align: top;
+  display: inline-block;
+  margin-top: 12px;
+  color: #8b949e;
+  font-weight: 600;
+}
+
+.balance-trend {
+  margin-top: 1rem;
+}
+
+.trend-indicator {
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.trend-indicator.positive {
+  background: rgba(46, 160, 67, 0.15);
+  color: #3fb950;
+}
+
+.trend-indicator.negative {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .balance-card {
+    padding: 1.5rem;
+  }
+
+  .balance-amount {
+    font-size: 2.5rem;
+  }
+
+  .balance-amount .cents {
+    font-size: 1.2rem;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .balance-amount {
+    font-size: 2rem;
+  }
+}

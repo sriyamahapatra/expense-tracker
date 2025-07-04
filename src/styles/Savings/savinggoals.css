@@ -1,0 +1,121 @@
+.savings-goals-section {
+  background: rgba(13, 17, 23, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-top: 3rem;
+  border: 1px solid rgba(48, 54, 61, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.savings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.savings-header h2 {
+  margin: 0;
+  color: #e6edf3;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.savings-summary {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  color: #8b949e;
+}
+
+.summary-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.add-goal-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #58a6ff 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.add-goal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(88, 166, 255, 0.3);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(13, 17, 23, 0.4);
+  border-radius: 12px;
+  border: 2px dashed rgba(48, 54, 61, 0.5);
+}
+
+.empty-state h3 {
+  color: #c9d1d9;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #8b949e;
+  margin-bottom: 1.5rem;
+}
+
+.add-first-goal {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #58a6ff 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-first-goal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(88, 166, 255, 0.3);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .savings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .savings-summary {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .savings-goals-section {
+    padding: 1.5rem;
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+}

@@ -1,0 +1,68 @@
+.chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.time-range-selector,
+.chart-type-selector {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.time-range-btn,
+.chart-type-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e6edf3;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-range-btn:hover,
+.chart-type-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.time-range-btn.active,
+.chart-type-btn.active {
+  background: linear-gradient(135deg, #58a6ff 0%, #7c3aed 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(88, 166, 255, 0.3);
+}
+
+.chart-type-btn i {
+  font-size: 0.9rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .chart-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .time-range-selector,
+  .chart-type-selector {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .time-range-btn,
+  .chart-type-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
